@@ -1,4 +1,4 @@
-TRANSLATE SUMMARY FIELD - COMICRACK PLUGIN
+*** TRANSLATE SUMMARY FIELD - COMICRACK PLUGIN ***
 
 As the title say, with this plugin for Comicrack you could translate the content of the "summary" field of the metadata of the comic
 to your language. Normally when you scrape the metadata with Comicvine, Bedetheque, Bonelli, FromDucks or any other scrapper plugin you have, the content could be not in you language. 
