@@ -14,7 +14,7 @@ Then unzip it and copy the "Lib" directory hanging under the comicrack installat
 I know other plugin developers don't like this solution, but I think that's a topic for discussion in another forum.
 The truth is that I have tried it and it works correctly.
 
-I anyboy want to include the libraries and deploy the plugin with it, it's totally free to do.
+If anybody want to include the libraries and deploy the plugin with it, it's free to do it.
 
 I hope you find it useful and it makes your life easier.
 
