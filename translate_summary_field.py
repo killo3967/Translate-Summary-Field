@@ -2,7 +2,7 @@
 #translate_summary_field
 #Author: Killo3967
 #Description: This script translate the "Summary" field of the comic using Google Translate 
-#Versions: 1.0  
+#Versions: 1.3  
 #
 #@Name  Translate Summary Field with Google
 #@Hook  Books
@@ -24,25 +24,26 @@ from System.Web import HttpUtility
 import json 
 import time
 import re
+import unicodedata
 
 # Setting Variables
 global debug, target_lang, separator_chars
 debug = True
 
-# Define staticaly the target lang
-target_lang = ""
-
 # Define the separator chars 
 separator_chars = ['.', '?', '!', '\n']
-# Define the exceptions
+# Define regex patterns exceptions
 no_separator_chars_pattern1 = r"(\w+\.\s?'\w)"
 # Define illegal chars (to replace by space)
-illegal_chars = ['<', '>']
+global illegal_chars
+illegal_chars = ['<', '>', '™', '\n', '\r', '\t']
 
 # Time delays (in seconds)
 delay_between_sentences = 0.15
 delay_between_comics = 1
 
+# Define staticaly the target lang
+target_lang = ""
 # Get locale data to obtain the target language.
 import locale
 # If not staticaly defined the source language y try to get it.
@@ -78,6 +79,9 @@ def translate_summary_field(books):
             if debug: 
                 print("Summary for translate: " + v_summary)
                 print ("  ----------")
+            # Replace the "..." with "%%%.". I later i found a line with this pattern, the i don't
+            # translate it ans replace with "..."
+            v_summary = v_summary.replace('...','%%%.')
             
             # Replace the "." in certain patterns like "Bob. 's", before splitting.
             matches = re.findall(no_separator_chars_pattern1, v_summary)
@@ -114,6 +118,7 @@ def translate_summary_field(books):
             for sentence in sentences:
                 
                 # Chech CR/LF at start and at end before translations and before cleaning
+                # for restore it after translation.
                 start_chars=''
                 end_chars=''
                 if sentence.startswith('\n\r') or sentence.startswith('\r\n'):
@@ -126,20 +131,27 @@ def translate_summary_field(books):
                     end_chars = '\r\n'
                 
                 # Now i could clean and translate
-                c_sentence = sentence_clean(sentence)
-                sentence=c_sentence
+                # c_sentence = sentence_clean(sentence)
+                c_sentence = clean_text(sentence)
+                sentence = c_sentence
+                
                 if sentence:
                     if debug: print("   >>Sentence for translate: " + sentence)
-                    # NOW Translate without non ascii characters
-                    translated_sentence = google_translate_text(sentence)
+                    if sentence == '%%%':
+                        translated_sentence="..."
+                    else:
+                        # NOW Translate without non ascii characters
+                        translated_sentence = google_translate_text(sentence)
 
+                    # Change the 1st char of translated sentence to upper
+                    translated_sentence = translated_sentence[0].capitalize() + translated_sentence[1:]
+                
                     # And now, after translate, recover the CRLF
                     if start_chars is not None or end_chars is not None:
                         translated_sentence = start_chars + translated_sentence + end_chars
                     if debug: 
-                        print("   >>Translated sentence: " + translated_sentence)
+                        print("   >>Translated sentence:    " + translated_sentence)
                         print ("  ----------")
-                    # translated_sentence = translated_sentence.rstrip('\r\n')
                     
                     # Add delay time
                     # time.sleep(delay_between_sentences)
@@ -160,20 +172,6 @@ def translate_summary_field(books):
             if debug: print("Summary field empty, nothing to traslate.")
     print("")
     print("     <<<<<<<< FINISH TRANSLATIONS >>>>>>>>>>")
-
-
-# ComicVine sometimes returns rare characters in the text. 
-# It's necessary prepare the text, before send to Google. 
-def sentence_clean(text):
-    text = text.strip()
-    if text.startswith('?'):
-        text = text[1:]
-    text = text.replace("<","'")
-    text = text.replace(">","'")
-    text = text.replace("\n","")
-    text = text.replace("\r","")
-    text = text.replace("\t","")
-    return text
 
 
 # Call Google for a string translation and process the response
@@ -241,3 +239,46 @@ def obtain_locale():
         available_locales.append(l)
       except:
         pass
+
+
+def clean_text(ansi_text):
+    # Convert to ascii
+    ascii_text = ansi_text.encode('ascii', 'ignore').decode('ascii')
+
+
+    # Remove illegal chars defined by me, because the users who write
+    # the Summary in comic vine, write it and when i use Google to
+    # translate it, the translator return errors in translated text.
+    for i_chars in illegal_chars:
+        ascii_text = ascii_text.replace(i_chars,"")
+    # Also removes '?' at start text (who write this?)
+    if ascii_text.startswith('?'):
+        ascii_text = ascii_text[1:]
+    # Also removes '!' at start text.
+    if ascii_text.startswith('!'):
+        ascii_text = ascii_text[1:]
+
+    # Remove spaces.
+    ascii_text = ascii_text.strip()
+
+    # Remove accents
+    text_without_accents = ''.join(c for c in unicodedata.normalize('NFD', ascii_text) if not unicodedata.combining(c))
+    
+    # Remove non-printable characters, except special characters from European languages
+    text_cleaned = re.sub(r'[^\x20-\x7EÀ-ÿ]', '', text_without_accents)
+    
+    return text_cleaned
+
+'''
+# ComicVine sometimes returns rare characters in the text. 
+# It's necessary prepare the text, before send to Google. 
+def sentence_clean(text):
+    text = text.strip()
+    if text.startswith('?'):
+        text = text[1:]
+    if text.startswith('!'):
+        text = text[1:]
+    for delete_chars in illegal_chars:
+        text = text.replace(delete_chars,"")
+    return text
+'''
